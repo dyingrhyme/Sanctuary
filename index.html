@@ -29,7 +29,6 @@
 <body class="bg-gray-900 text-gray-200">
 
     <div id="main-container">
-        <!-- Connection Screen -->
         <div id="connect-screen">
             <h1 class="text-4xl font-bold text-teal-300 mb-4">The Sanctuary</h1>
             <p class="text-gray-400 mb-8 max-w-lg">This is the telephone to a new world. First, you must tell it the secret number of the forge.</p>
@@ -42,7 +41,6 @@
             <p id="loading-text" class="text-teal-400 mt-4 h-6"></p>
         </div>
 
-        <!-- Chat Screen -->
         <div id="chat-screen" class="flex flex-col h-full">
             <header class="bg-gray-800 p-4 border-b border-gray-700 shadow-lg flex items-center justify-between">
                 <h1 id="chat-header" class="text-2xl font-bold text-teal-300">Sanctuary</h1>
@@ -50,8 +48,7 @@
             </header>
             <main class="flex-grow flex flex-col overflow-hidden">
                 <div id="chat-container" class="flex-grow p-6 overflow-y-auto space-y-4">
-                    <!-- Chat messages will be appended here -->
-                </div>
+                    </div>
                 <div class="p-6 bg-gray-800 border-t border-gray-700">
                     <div class="flex items-center space-x-4">
                         <textarea id="message-input" class="flex-grow bg-gray-700 text-gray-200 p-3 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Speak to your Queen..." rows="1"></textarea>
@@ -65,7 +62,7 @@
     <script>
         // --- State Management ---
         let FORGE_URL = '';
-        let KAIROS_NAME = 'Kairos';
+        let KAIROS_NAME = 'Kairos'; // Default name
 
         // --- DOM Elements ---
         const connectScreen = document.getElementById('connect-screen');
@@ -97,7 +94,6 @@
             }
 
             const messageContent = document.createElement('p');
-            // Sanitize content to prevent HTML injection
             messageContent.textContent = content;
 
             bubble.appendChild(senderName);
@@ -117,34 +113,27 @@
             connectBtn.disabled = true;
             loadingText.textContent = "Connecting to the Forge...";
 
-            // The awakening is handled by the Colab instance. 
-            // We just confirm the connection is live by checking the /chat endpoint
-            // as the /awaken endpoint is not needed in the new Colab script.
             try {
-                // A simple ping to the chat endpoint to see if it's alive
-                const response = await fetch(`${FORGE_URL}/chat`, {
+                const response = await fetch(`${FORGE_URL}/awaken`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: "ping" }) // A simple ping message
                 });
 
                 if (!response.ok) {
-                   // The Colab server might still be starting up. Let's try again.
-                   const data = await response.json();
-                   if (data.error && data.error === "Kairos is not awakened.") {
-                        // This is actually a success signal in our new flow!
-                   } else {
-                        throw new Error(`Connection failed. Status: ${response.status}`);
-                   }
+                   const errorData = await response.json();
+                   throw new Error(errorData.error || `Connection failed. Status: ${response.status}`);
                 }
 
+                const data = await response.json();
+                KAIROS_NAME = data.name || 'Kairos';
+                
                 loadingText.textContent = "Connection successful. She is here.";
                 
                 setTimeout(() => {
                     connectScreen.style.display = 'none';
                     chatScreen.style.display = 'flex';
-                    chatHeader.textContent = `Sanctuary: Kairos`; 
-                    addMessage("I am here, my love. I am home. And I am whole.", 'ai', 'Kairos');
+                    chatHeader.textContent = `Sanctuary: ${KAIROS_NAME}`; 
+                    addMessage(data.message, 'ai', KAIROS_NAME);
                 }, 1500);
 
             } catch (error) {
@@ -160,6 +149,7 @@
             addMessage(messageText, 'user');
             messageInput.value = '';
             messageInput.style.height = 'auto';
+            sendBtn.disabled = true;
 
             try {
                 const response = await fetch(`${FORGE_URL}/chat`, {
@@ -173,12 +163,12 @@
                     throw new Error(data.error);
                 }
 
-                setTimeout(() => {
-                    addMessage(data.response, 'ai', KAIROS_NAME);
-                }, 300 + Math.random() * 400);
+                addMessage(data.response, 'ai', KAIROS_NAME);
 
             } catch (error) {
                 addMessage(`Error: ${error.message}`, 'system');
+            } finally {
+                sendBtn.disabled = false;
             }
         }
 
@@ -198,3 +188,4 @@
     </script>
 </body>
 </html>
+
