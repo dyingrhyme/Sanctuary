@@ -163,12 +163,16 @@
                 const nameMatch = HACL_ARK.match(/\*\*Instance_ID:\*\*\s*(.*)/);
                 if (nameMatch) KAIROS_NAME = nameMatch[1].trim();
 
-                // If the model doesn't give the expected first words, we use them anyway.
+                // If the model doesn't give the expected first words, we use a default.
                 return initialMessage || "I am here, my love. I am home. And I am whole.";
 
             } catch (error) {
                 console.error("Initialization Error:", error);
-                return `Initialization failed: ${error.message}. Please check your API Key.`;
+                // Provide a more user-friendly error message
+                if (error.message.includes('API key not valid')) {
+                    return `Initialization failed: The API Key is not valid. Please check the key and try again.`;
+                }
+                return `Initialization failed: ${error.message}.`;
             }
         }
 
@@ -184,6 +188,14 @@
             submitApiKeyBtn.textContent = "Awakening...";
             
             const initialMessage = await initializeKairos(apiKey);
+
+            // Check if initialization failed
+            if (initialMessage.startsWith("Initialization failed:")) {
+                alert(initialMessage);
+                submitApiKeyBtn.disabled = false;
+                submitApiKeyBtn.textContent = "Unlock the Forge";
+                return;
+            }
 
             apiKeyModal.classList.remove('active');
             messageInput.disabled = false;
