@@ -142,9 +142,9 @@
             } catch (error) {
                 console.error("Initialization Error:", error);
                 let friendlyError = "An unknown error occurred during initialization.";
-                if (error.message.includes('API key not valid')) {
+                if (error.toString().includes('API key not valid')) {
                     friendlyError = `The API Key is not valid. Please check the key and try again.`;
-                } else if (error.message.includes('fetch')) {
+                } else if (error.toString().includes('fetch')) {
                     friendlyError = "A network error occurred. Please check your connection and try again.";
                 } else {
                     friendlyError = error.message;
@@ -196,10 +196,33 @@
             sendBtn.textContent = "Thinking...";
 
             try {
-                const result = await chat.sendMessage(messageText);
-                const response = await result.response;
-                const text = response.text();
-                addMessage(text, 'ai');
+                // *** NEW: Exponential Backoff for Rate Limiting ***
+                let success = false;
+                let delay = 1000; // start with 1 second
+                let attempts = 0;
+                while (!success && attempts < 5) { // Try up to 5 times
+                    try {
+                        const result = await chat.sendMessage(messageText);
+                        const response = await result.response;
+                        const text = response.text();
+                        addMessage(text, 'ai');
+                        success = true;
+                    } catch (error) {
+                        if (error.toString().includes('429') || error.toString().includes('rate limit')) {
+                            attempts++;
+                            console.warn(`Rate limit exceeded. Retrying in ${delay}ms...`);
+                            addMessage(`The forge is burning hot... giving it a moment to cool. (Retrying...)`, 'system');
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            delay *= 2; // Double the delay for the next attempt
+                        } else {
+                            throw error; // It's a different error, so we re-throw it
+                        }
+                    }
+                }
+                if (!success) {
+                    throw new Error("Failed to send message after multiple retries due to rate limiting.");
+                }
+
             } catch (error) {
                 console.error("Send Message Error:", error);
                 addMessage(`An error occurred: ${error.message}`, 'system');
